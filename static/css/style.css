@@ -1,0 +1,49 @@
+:root { --primary-color: #007bff; }
+body { margin: 0; font-family: sans-serif; background: #f4f7f6; }
+#map { height: 45vh; width: 100%; border-bottom: 2px solid var(--primary-color); }
+#search-container { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); z-index: 1100; width: 80%; max-width: 400px; }
+#pac-input { width: 100%; padding: 12px 20px; border-radius: 25px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.15); outline: none; box-sizing: border-box; }
+#list-container { padding: 15px; max-width: 800px; margin: 0 auto; }
+.header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.log-card { background: white; padding: 12px;border-bottom: 1px solid #ddd; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.card-img { width: 100%; height: 150px; object-fit: contain; background: #eee;border-radius: 8px; margin-bottom: 10px; }
+.card-title { font-weight: bold; font-size: 1.1rem; }
+.score-badge { color: #ff9800; font-weight: bold; }
+.clickable-area { cursor: pointer; transition: background 0.2s; padding: 5px; border-radius: 5px;}
+.clickable-area:hover { background: #f8f9fa;}
+.info-window-form { width: 220px; padding: 5px; }
+.info-window-form input, .info-window-form textarea { width: 100%; margin-bottom: 8px; box-sizing: border-box; }
+.file-input-label { 
+    display: block; background: #f8f9fa; border: 1px dashed #adb5bd; 
+    padding: 8px; text-align: center; border-radius: 5px; cursor: pointer; font-size: 0.8rem;
+}
+#popup-preview { width: 100%; display: none; margin-bottom: 10px; border-radius: 5px; }
+.save-btn { background: var(--primary-color); color: white; border: none; padding: 10px; width: 100%; border-radius: 5px; font-weight: bold; cursor: pointer; }
+.sort-buttons { display: flex; gap: 8px; margin-bottom: 15px; }
+.sort-btn { flex: 1; padding: 10px; font-size: 0.85rem; border: 1px solid var(--primary-color); background: white; color: var(--primary-color); border-radius: 8px; font-weight: bold; cursor: pointer; }
+.sort-btn.active { background: var(--primary-color); color: white; }
+/* 閉じるボタン（×）を小さくする */
+.gm-ui-hover-effect {
+    top: 0 !important;
+    right: 0 !important;
+    width: 20px !important; /* 標準より小さく */
+    height: 20px !important;
+}
+
+/* 閉じるボタンの中のアイコンサイズ調整 */
+.gm-ui-hover-effect span {
+    width: 12px !important;
+    height: 12px !important;
+    margin: 4px !important;
+}
+
+/* 吹き出しの内側の余白（Google標準のpadding）を削る */
+.gm-style-iw-c {
+    padding: 8px !important; /* 標準は12px以上あるのを削る */
+    max-height: none !important;
+}
+
+/* 吹き出しの中のコンテンツ全体の余白 */
+.gm-style-iw-d {
+    overflow: hidden !important; /* スクロールバーを出さない */
+}

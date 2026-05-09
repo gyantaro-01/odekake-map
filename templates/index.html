@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ITパパのお出かけ攻略MAP</title>
+    <!-- CSSの読み込み -->
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+</head>
+<body>
+
+<div id="search-container">
+    <input id="pac-input" type="text" placeholder="場所を検索...">
+</div>
+<div id="map"></div>
+
+<div id="list-container">
+    <div class="header-flex"><h2>📊 攻略済みリスト</h2></div>
+    <div class="sort-buttons">
+        <button class="sort-btn" id="sort-name" onclick="sortTable('name')">名前順</button>
+        <button class="sort-btn" id="sort-kids_score" onclick="sortTable('kids_score')">スコア順</button>
+    </div>
+    <div id="card-list"></div>
+</div>
+
+<!-- Google Maps API の読み込み -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=places"></script>
+<!-- 外部JSの読み込み -->
+<script src="{{ url_for('static', path='js/script.js') }}"></script>
+
+</body>
+</html>
