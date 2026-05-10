@@ -28,11 +28,18 @@ async function initMap() {
         const response = await fetch('/api/config');
         if (response.ok) {
             const config = await response.json();
-            defaultPos = { lat: config.lat, lng: config.lng };
+            // config.center.lat のように、一段深く参照する
+            if (config.center && !isNaN(config.center.lat)) {
+                defaultPos = { 
+                    lat: Number(config.center.lat), 
+                    lng: Number(config.center.lng) 
+                };
+            }
         }
     } catch (error) {
-        console.error("[Config] 座標の取得に失敗しました。デフォルト位置を使用します。", error);
+        console.error("座標の取得失敗:", error);
     }
+    
 
     // 地図のレンダリング設定
     map = new google.maps.Map(document.getElementById("map"), {
