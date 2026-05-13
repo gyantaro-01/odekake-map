@@ -142,17 +142,18 @@ async function initMap() {
     loadData(); // 保存済みデータの読み込み開始
 }
 // ==========================================================================
-// 3. データ保存・更新関連 (Data Operations)
+// 3. データ保存・更新関連 (Data Operations) 
 // ==========================================================================
 
 async function saveLocation(name, lat, lng) {
     /**
      * 入力された情報をFormDataにまとめ、バックエンドへ送信。
-     * 認証ヘッダー（X-App-Password）を必須とする。
+     * ID重複によるバグ防止のため、InfoWindow内から直接要素を特定する。
      */
-    const score = document.getElementById("score-input").value;
-    const memo = document.getElementById("memo-input").value;
-    const imageFile = document.getElementById("image-input").files[0];
+    const iwContainer = document.querySelector('.info-window-form');
+    const score = iwContainer.querySelector("#score-input").value;
+    const memo = iwContainer.querySelector("#memo-input").value;
+    const imageFile = iwContainer.querySelector("#image-input").files[0];
 
     const formData = new FormData();
     formData.append("name", name);
@@ -164,50 +165,40 @@ async function saveLocation(name, lat, lng) {
 
     const res = await fetch(`${API_BASE_URL}/save-location`, { 
         method: 'POST', 
-        headers: { 'X-App-Password': appPassword }, // 認証を追加
+        headers: { 'X-App-Password': appPassword },
         body: formData 
     });
     
     if (res.ok) { 
         infowindow.close(); 
-        loadData(); // リストとピンを再読み込み
+        loadData(); 
     } else if (res.status === 403) {
         alert("認証エラー：パスワードを再確認してください。");
     }
 }
 
-async function update_location_call(name, currentScore, currentMemo) {
+async function editLocation(name, currentScore, currentMemo) {
     /**
-     * 既存スポット情報の更新（評価・メモ）。
+     * 編集ボタン押下時、InfoWindow（吹き出し）に編集用フォームを表示。
+     * promptではなく、新規登録と同じリッチなUIで編集を攻略。
      */
-    const inputScore = prompt(`${name} の評価(1-5)`, currentScore);
-    const inputMemo = prompt("メモ", currentMemo);
-    
-    if (inputScore === null || inputMemo === null) return;
+    const locationData = allLocations.find(l => l.name === name);
+    if (!locationData) return;
 
-    const res = await fetch(`${API_BASE_URL}/update-location`, {
-        method: 'POST', 
-        headers: {
-            'Content-Type': 'application/json',
-            'X-App-Password': appPassword // 認証を追加
-        },
-        body: JSON.stringify({ name, kids_score: parseInt(inputScore), memo: inputMemo })
-    });
-    
-    if (res.ok) loadData();
-}
+    const content = `
+        <div class="info-window-form">
+            <strong>📝 編集: ${name}</strong>
+            <div style="margin: 8px 0;">
+                <span style="font-size:0.85rem; color:#666;">評価 (1-5):</span>
+                <input type="number" id="score-input" value="${currentScore}" min="1" max="5" style="width:50px; float:right;">
+            </div>
+            <textarea id="memo-input" placeholder="攻略メモ..." style="width:100%; margin-bottom:8px;">${currentMemo}</textarea>
+            <button onclick="saveLocation('${name}', ${locationData.lat}, ${locationData.lng})" class="save-btn">更新完了</button>
+        </div>`;
 
-async function deleteLocation(name) {
-    /**
-     * スポットの削除を実行。
-     */
-    if (!confirm(`${name} を削除しますか？`)) return;
-    const res = await fetch(`${API_BASE_URL}/delete-location?name=${encodeURIComponent(name)}`, { 
-        method: 'DELETE',
-        headers: { 'X-App-Password': appPassword } // 認証を追加
-    });
-    
-    if (res.ok) loadData();
+    infowindow.setContent(content);
+    infowindow.setPosition({ lat: locationData.lat, lng: locationData.lng });
+    infowindow.open(map);
 }
 // ==========================================================================
 // 4. 地図・UI描画ロジック (Rendering)
@@ -287,52 +278,43 @@ function renderList() {
 }
 
 // ==========================================================================
-// 5. ヘルパー関数 (Helper Functions)
+// 5. ヘルパー関数 (Helper Functions) - 修正版
 // ==========================================================================
 
-function showTooltipWithMarker(marker, name, memo, score) {
+function showSaveForm(place) {
     /**
-     * 地図上のピンに紐づくツールチップ（吹き出し）を表示。
+     * 場所検索後に表示される新規保存用フォーム。
+     * score-inputにデフォルト値5をセット。
      */
-    const stars = "⭐".repeat(score || 0);
-    infowindow.setContent(`
-        <div style="padding:0px 2px; min-width:120px; line-height: 1.2; cursor:default;">
-            <strong style="display:block; font-size:0.9rem; margin: 0 0 1px 0; padding-right: 15px;">📍 ${name}</strong>
-            <div style="color:#ff9800; font-size:0.8rem; margin-bottom:2px;">${stars}</div>
-            <div style="font-size:0.75rem; color:#666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">${memo}</div>
-        </div>
-    `);
-    infowindow.open(map, marker);
-}
-
-function focusOnMap(lat, lng, name, memo, score) {
-    /**
-     * リストクリック時に地図を該当地点へスムーズに移動。
-     */
-    const pos = { lat: lat, lng: lng };
-    map.panTo(pos);
-    map.setZoom(17);
-    
-    const stars = "⭐".repeat(score || 0);
-    infowindow.setContent(`
-        <div style="padding:5px; min-width:150px;">
-            <strong style="display:block; font-size:1rem; margin-bottom:3px;">📍 ${name}</strong>
-            <div style="color:#ff9800; margin-bottom:5px;">${stars}</div>
-            <div style="font-size:0.8rem; color:#666; line-height:1.4;">${memo}</div>
-        </div>
-    `);
-    infowindow.setPosition(pos);
+    const content = `
+        <div class="info-window-form">
+            <strong>📍 ${place.name}</strong>
+            <label class="file-input-label">📷 写真を追加
+                <input type="file" id="image-input" accept="image/*" style="display:none" onchange="previewImage(this)">
+            </label>
+            <img id="popup-preview" style="width:100%; display:none; margin-bottom:10px; border-radius:5px;">
+            <div style="margin-bottom:8px;">
+                <span style="font-size:0.85rem; color:#666;">評価 (1-5):</span>
+                <input type="number" id="score-input" value="5" min="1" max="5" style="width:50px; float:right;">
+            </div>
+            <textarea id="memo-input" placeholder="攻略メモ..." style="width:100%; margin-bottom:8px;"></textarea>
+            <button onclick="saveLocation('${place.name}', ${place.geometry.location.lat()}, ${place.geometry.location.lng()})" class="save-btn">攻略完了</button>
+        </div>`;
+    infowindow.setContent(content);
+    infowindow.setPosition(place.geometry.location);
     infowindow.open(map);
 }
 
 function previewImage(input) {
     /**
-     * 画像選択時に即座にプレビューを表示。
+     * InfoWindow内のプレビュー要素を確実に特定して表示。
      */
     if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const img = document.getElementById("popup-preview");
+            // 現在のInfoWindow内のimgタグを探す
+            const iwContainer = document.querySelector('.info-window-form');
+            const img = iwContainer ? iwContainer.querySelector("#popup-preview") : null;
             if (img) {
                 img.src = e.target.result; 
                 img.style.display = "block";
