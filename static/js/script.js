@@ -427,7 +427,7 @@ function focusOnMap(lat, lng, name, memo, score) {
 
 
     infowindow.setOptions({
-        pixelOffset: new google.maps.Size(0, -30) 
+        pixelOffset: new google.maps.Size(0, -20) 
     });
     
     infowindow.setPosition(pos);
