@@ -8,50 +8,70 @@
     <!-- 
       【外部リソース】
       FastAPI(Jinja2)のurl_forを使用して、staticディレクトリ内のCSSを動的に参照。
-      キャッシュ対策やパスの不整合を防ぐ指定方法。
     -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+    
+    <style>
+        /* 認証用インラインスタイル（認証前のみ表示） */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #f4f7f6; display: flex; align-items: center; justify-content: center; z-index: 10000;
+        }
+        .login-box { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
+        /* 初期状態ではメインコンテンツを隠す */
+        #main-app { display: none; }
+    </style>
 </head>
 <body>
 
-    <!-- 1. 検索セクション: Google Places Autocomplete用入力エリア -->
-    <div id="search-container">
-        <input id="pac-input" type="text" placeholder="場所を検索...">
+    <!-- 0. 認証セクション: パスワードの入力エリア -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>お出かけ攻略マップ</h2>
+            <p>パスワードを入力してください</p>
+            <input type="password" id="pass-input" placeholder="Password" style="padding: 10px; margin-bottom: 10px;">
+            <br>
+            <button class="sort-btn" onclick="attemptLogin()">ログイン</button>
+        </div>
     </div>
 
-    <!-- 2. マップセクション: 地図のレンダリング先 -->
-    <div id="map"></div>
+    <div id="main-app">
+        <!-- ログアウトボタン -->
+        <button onclick="logout()" style="position: absolute; right: 10px; top: 10px; z-index: 1000;">ログアウト</button>
 
-    <!-- 3. リストセクション: 攻略済みスポットの動的表示エリア -->
-    <div id="list-container">
-        <div class="header-flex">
-            <h2>📊 攻略済みリスト</h2>
+        <!-- 1. 検索セクション: Google Places Autocomplete用入力エリア -->
+        <div id="search-container">
+            <input id="pac-input" type="text" placeholder="場所を検索...">
         </div>
 
-        <!-- 並び替えコントロール -->
-        <div class="sort-buttons">
-            <button class="sort-btn" id="sort-name" onclick="sortTable('name')">名前順</button>
-            <button class="sort-btn" id="sort-kids_score" onclick="sortTable('kids_score')">スコア順</button>
-        </div>
+        <!-- 2. マップセクション: 地図のレンダリング先 -->
+        <div id="map"></div>
 
-        <!-- 
-          ここに script.js の renderList() によって 
-          .log-card エレメントが動的に挿入される
-        -->
-        <div id="card-list"></div>
+        <!-- 3. リストセクション: 攻略済みスポットの動的表示エリア -->
+        <div id="list-container">
+            <div class="header-flex">
+                <h2>📊 攻略済みリスト</h2>
+            </div>
+
+            <!-- 並び替えコントロール -->
+            <div class="sort-buttons">
+                <button class="sort-btn" id="sort-name" onclick="sortTable('name')">名前順</button>
+                <button class="sort-btn" id="sort-kids_score" onclick="sortTable('kids_score')">スコア順</button>
+            </div>
+
+            <div id="card-list"></div>
+        </div>
     </div>
 
     <!-- 
       【外部SDK読み込み】
       Google Maps API: main.py から渡された api_key を使用。
-      placesライブラリを併用することで、名称検索を可能にしている。
     -->
     <script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=places"></script>
 
     <!-- 
       【アプリケーションロジック】
       メインの動作を制御する外部JavaScript。
-      APIの読み込み完了後に実行されるよう、最後に配置している。
     -->
     <script src="{{ url_for('static', path='js/script.js') }}"></script>
 

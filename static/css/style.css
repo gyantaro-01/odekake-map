@@ -8,6 +8,7 @@
     --border-color: #dddddd;
     --text-muted: #666666;
     --star-color: #ff9800;
+    --danger-color: #e74c3c; /* ログアウト・削除用 */
 }
 
 body {
@@ -18,7 +19,56 @@ body {
 }
 
 /* ==========================================================================
-   2. Map & Search UI
+   2. Authentication UI (Login Overlay)
+   ========================================================================== */
+#login-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #e1e9e8 0%, #f4f7f6 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000; /* Googleマップのコントロールより前面に配置 */
+}
+
+.login-box {
+    background: var(--card-bg);
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    text-align: center;
+    width: 85%;
+    max-width: 360px;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.login-box input[type="password"] {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    box-sizing: border-box; /* 幅のはみ出し防止 */
+    font-size: 16px; /* iOSの自動ズーム防止 */
+}
+
+.login-box button {
+    width: 100%;
+    padding: 12px;
+    background: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   3. Map & Search UI
    ========================================================================== */
 #map {
     height: 45vh; /* スマホでの操作性を考慮し、画面の約半分を地図に割り当て */
@@ -48,7 +98,7 @@ body {
 }
 
 /* ==========================================================================
-   3. List & Cards (Information Architecture)
+   4. List & Cards (Information Architecture)
    ========================================================================== */
 #list-container {
     padding: 15px;
@@ -61,6 +111,16 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+}
+
+.logout-btn {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
 }
 
 .log-card {
@@ -103,7 +163,7 @@ body {
 }
 
 /* ==========================================================================
-   4. Form & Interactions
+   5. Form & Interactions
    ========================================================================== */
 .info-window-form {
     width: 220px;
@@ -171,7 +231,7 @@ body {
 }
 
 /* ==========================================================================
-   5. Google Maps InfoWindow Hacks (Customizing default SDK styles)
+   6. Google Maps InfoWindow Hacks (Customizing default SDK styles)
    ========================================================================== */
 
 /* 閉じるボタン（×）のサイズ最適化 */

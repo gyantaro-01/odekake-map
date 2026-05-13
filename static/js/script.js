@@ -1,9 +1,9 @@
 /**
- * ITパパのお出かけ攻略MAP - Frontend Logic
+ * ITパパのお出かけ攻略MAP - Frontend Logic (Auth Integrated)
  * 
  * 役割:
- * 1. Google Maps APIの初期化とコントロール
- * 2. Supabase(Backend経由)とのデータ同期
+ * 1. 認証状態の管理（合言葉によるアクセス制限）
+ * 2. Google Maps APIの初期化とコントロール
  * 3. ユーザーインターフェース(UI)の動的生成
  */
 
@@ -13,19 +13,82 @@ let allLocations = [];
 let currentSort = { key: null, asc: true };
 const API_BASE_URL = ""; 
 
+// ブラウザの保存領域からパスワードを取得
+let appPassword = localStorage.getItem('app_pass');
+
 // ==========================================================================
-// 1. 地図初期化・コア設定 (Initialization)
+// 1. 認証管理ロジック (Authentication)
+// ==========================================================================
+
+document.addEventListener("DOMContentLoaded", () => {
+    /**
+     * ページ読み込み時に実行。
+     * パスワードの有無によって、ログイン画面か地図画面かを切り替える。
+     */
+    const loginOverlay = document.getElementById('login-overlay');
+    const mainApp = document.getElementById('main-app');
+
+    if (appPassword) {
+        // すでにパスワードが保存されていればアプリを表示
+        loginOverlay.style.display = 'none';
+        mainApp.style.display = 'block';
+    } else {
+        // 未認証ならログイン画面を表示
+        loginOverlay.style.display = 'flex';
+        mainApp.style.display = 'none';
+    }
+});
+
+async function attemptLogin() {
+    /**
+     * ログインボタン押下時の処理。
+     * 入力されたパスワードでAPI(config)を叩き、正解ならログイン状態にする。
+     */
+    const passInput = document.getElementById('pass-input').value;
+    
+    // 門番役のAPIにアクセス（ヘッダーにパスワードを乗せる）
+    const res = await fetch('/api/config', {
+        headers: { 'X-App-Password': passInput }
+    });
+
+    if (res.ok) {
+        // 認証成功：パスワードを保存してリロード
+        localStorage.setItem('app_pass', passInput);
+        appPassword = passInput;
+        location.reload(); 
+    } else {
+        // 認証失敗
+        alert("パスワードが違います。");
+    }
+}
+
+function logout() {
+    /**
+     * ログアウト処理。
+     * 保存された鍵を破棄してログイン画面に戻す。
+     */
+    localStorage.removeItem('app_pass');
+    location.reload();
+}
+// ==========================================================================
+// 2. 地図初期化・コア設定 (Initialization)
 // ==========================================================================
 
 async function initMap() {
     /**
      * Googleマップを起動し、初期位置を設定。
-     * 座標はセキュリティの観点からバックエンドの環境変数経由で取得。
+     * 認証済みのパスワード（appPassword）を添えて設定を取得。
      */
     let defaultPos = { lat: 35.6812, lng: 139.7671 }; // 取得失敗時のフォールバック(東京駅)
     
+    // 未認証の場合は地図の初期化をスキップ（エラー防止）
+    if (!appPassword) return;
+
     try {
-        const response = await fetch('/api/config');
+        const response = await fetch('/api/config', {
+            headers: { 'X-App-Password': appPassword } // 認証ヘッダーを追加
+        });
+
         if (response.ok) {
             const config = await response.json();
             // config.center.lat のように、一段深く参照する
@@ -35,11 +98,14 @@ async function initMap() {
                     lng: Number(config.center.lng) 
                 };
             }
+        } else if (response.status === 403) {
+            // パスワードが期限切れ、または無効な場合はログアウト
+            logout();
+            return;
         }
     } catch (error) {
         console.error("座標の取得失敗:", error);
     }
-    
 
     // 地図のレンダリング設定
     map = new google.maps.Map(document.getElementById("map"), {
@@ -64,7 +130,7 @@ async function initMap() {
         const place = autocomplete.getPlace();
         if (!place.geometry || !place.geometry.location) return;
 
-        // 検索結果に移動（範囲がある場合はフィット、ない場合はピンポイント移動）
+        // 検索結果に移動
         if (place.geometry.viewport) map.fitBounds(place.geometry.viewport);
         else { 
             map.setCenter(place.geometry.location); 
@@ -75,14 +141,14 @@ async function initMap() {
 
     loadData(); // 保存済みデータの読み込み開始
 }
-
 // ==========================================================================
-// 2. データ保存・更新関連 (Data Operations)
+// 3. データ保存・更新関連 (Data Operations)
 // ==========================================================================
 
 async function saveLocation(name, lat, lng) {
     /**
      * 入力された情報をFormDataにまとめ、バックエンドへ送信。
+     * 認証ヘッダー（X-App-Password）を必須とする。
      */
     const score = document.getElementById("score-input").value;
     const memo = document.getElementById("memo-input").value;
@@ -98,12 +164,15 @@ async function saveLocation(name, lat, lng) {
 
     const res = await fetch(`${API_BASE_URL}/save-location`, { 
         method: 'POST', 
+        headers: { 'X-App-Password': appPassword }, // 認証を追加
         body: formData 
     });
     
     if (res.ok) { 
         infowindow.close(); 
         loadData(); // リストとピンを再読み込み
+    } else if (res.status === 403) {
+        alert("認証エラー：パスワードを再確認してください。");
     }
 }
 
@@ -118,7 +187,10 @@ async function update_location_call(name, currentScore, currentMemo) {
 
     const res = await fetch(`${API_BASE_URL}/update-location`, {
         method: 'POST', 
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'X-App-Password': appPassword // 認証を追加
+        },
         body: JSON.stringify({ name, kids_score: parseInt(inputScore), memo: inputMemo })
     });
     
@@ -131,21 +203,27 @@ async function deleteLocation(name) {
      */
     if (!confirm(`${name} を削除しますか？`)) return;
     const res = await fetch(`${API_BASE_URL}/delete-location?name=${encodeURIComponent(name)}`, { 
-        method: 'DELETE' 
+        method: 'DELETE',
+        headers: { 'X-App-Password': appPassword } // 認証を追加
     });
     
     if (res.ok) loadData();
 }
-
 // ==========================================================================
-// 3. 地図・UI描画ロジック (Rendering)
+// 4. 地図・UI描画ロジック (Rendering)
 // ==========================================================================
 
 async function loadData() {
     /**
      * バックエンドから全データを取得し、地図上のピンを生成。
+     * ここでもパスワード（appPassword）をヘッダーに乗せてリクエスト。
      */
-    const res = await fetch(`${API_BASE_URL}/get-locations`);
+    const res = await fetch(`${API_BASE_URL}/get-locations`, {
+        headers: { 'X-App-Password': appPassword }
+    });
+    
+    if (!res.ok) return;
+    
     allLocations = await res.json();
     
     allLocations.forEach(loc => {
@@ -183,6 +261,7 @@ function renderList() {
      * 画面下部の「攻略済みスポット一覧」を生成。
      */
     const container = document.getElementById('card-list');
+    if (!container) return; // エラー防止
     container.innerHTML = '';
     
     allLocations.forEach(loc => {
@@ -208,7 +287,7 @@ function renderList() {
 }
 
 // ==========================================================================
-// 4. ヘルパー関数 (Helper Functions)
+// 5. ヘルパー関数 (Helper Functions)
 // ==========================================================================
 
 function showTooltipWithMarker(marker, name, memo, score) {
@@ -248,14 +327,16 @@ function focusOnMap(lat, lng, name, memo, score) {
 
 function previewImage(input) {
     /**
-     * 画像選択時に即座にプレビューを表示（FileReader API使用）。
+     * 画像選択時に即座にプレビューを表示。
      */
     if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = document.getElementById("popup-preview");
-            img.src = e.target.result; 
-            img.style.display = "block";
+            if (img) {
+                img.src = e.target.result; 
+                img.style.display = "block";
+            }
         };
         reader.readAsDataURL(input.files[0]);
     }
@@ -263,7 +344,7 @@ function previewImage(input) {
 
 function showSaveForm(place) {
     /**
-     * 場所検索後に表示される新規保存用フォームのテンプレートを生成。
+     * 場所検索後に表示される新規保存用フォーム。
      */
     const content = `
         <div class="info-window-form">
@@ -271,12 +352,12 @@ function showSaveForm(place) {
             <label class="file-input-label">📷 写真を追加
                 <input type="file" id="image-input" accept="image/*" style="display:none" onchange="previewImage(this)">
             </label>
-            <img id="popup-preview">
+            <img id="popup-preview" style="width:100%; display:none; margin-bottom:10px; border-radius:5px;">
             <div style="margin-bottom:8px;">
                 <span style="font-size:0.85rem; color:#666;">評価 (1-5):</span>
                 <input type="number" id="score-input" value="5" min="1" max="5" style="width:50px; float:right;">
             </div>
-            <textarea id="memo-input" placeholder="攻略メモ..."></textarea>
+            <textarea id="memo-input" placeholder="攻略メモ..." style="width:100%; margin-bottom:8px;"></textarea>
             <button onclick="saveLocation('${place.name}', ${place.geometry.location.lat()}, ${place.geometry.location.lng()})" class="save-btn">攻略完了</button>
         </div>`;
     infowindow.setContent(content);
@@ -292,7 +373,8 @@ function sortTable(key) {
     else { currentSort.key = key; currentSort.asc = (key === 'kids_score' ? false : true); }
     
     document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(`sort-${key}`).classList.add('active');
+    const activeBtn = document.getElementById(`sort-${key}`);
+    if (activeBtn) activeBtn.classList.add('active');
     
     allLocations.sort((a, b) => {
         let vA = a[key], vB = b[key];
