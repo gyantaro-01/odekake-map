@@ -144,6 +144,27 @@ async function initMap() {
 // ==========================================================================
 // 3. データ保存・更新関連 (Data Operations) 
 // ==========================================================================
+async function deleteLocation(name) {
+    /**
+     * スポットの削除を実行。
+     * 元のコードのロジックを維持しつつ、確実にfetchが走るように修正。
+     */
+    if (!confirm(`${name} を削除しますか？`)) return;
+    
+    // API_BASE_URLが空文字でも正しくパスが通るように記述
+    const url = `/delete-location?name=${encodeURIComponent(name)}`;
+    
+    const res = await fetch(url, { 
+        method: 'DELETE',
+        headers: { 'X-App-Password': appPassword } 
+    });
+    
+    if (res.ok) {
+        loadData(); // 再読み込みしてリストとピンを更新
+    } else {
+        alert("削除に失敗しました。");
+    }
+}
 
 async function saveLocation(name, lat, lng) {
     /**
@@ -177,37 +198,40 @@ async function saveLocation(name, lat, lng) {
     }
 }
 
-async function editLocation(name, currentScore, currentMemo) {
+function editInList(name, currentScore, currentMemo) {
     /**
-     * 編集ボタン押下時、InfoWindow（吹き出し）に編集用フォームを表示。
-     * promptではなく、新規登録と同じリッチなUIで編集を攻略。
+     * リスト上の「編集」ボタンから呼ばれる。
+     * ブラウザ標準の prompt を使い、リスト上で完結させる。
      */
-    const locationData = allLocations.find(l => l.name === name);
-    if (!locationData) return;
+    const inputScore = prompt(`${name} の評価(1-5)`, currentScore);
+    const inputMemo = prompt("メモを編集", currentMemo);
+    
+    if (inputScore === null || inputMemo === null) return;
 
-    const content = `
-        <div class="info-window-form">
-            <strong>📝 編集: ${name}</strong>
-            <div style="margin: 8px 0;">
-                <span style="font-size:0.85rem; color:#666;">評価 (1-5):</span>
-                <input type="number" id="score-input" value="${currentScore}" min="1" max="5" style="width:50px; float:right;">
-            </div>
-            <textarea id="memo-input" placeholder="攻略メモ..." style="width:100%; margin-bottom:8px;">${currentMemo}</textarea>
-            <button onclick="saveLocation('${name}', ${locationData.lat}, ${locationData.lng})" class="save-btn">更新完了</button>
-        </div>`;
-
-    infowindow.setContent(content);
-    infowindow.setPosition({ lat: locationData.lat, lng: locationData.lng });
-    infowindow.open(map);
+    // 更新APIを叩く
+    fetch(`/update-location`, {
+        method: 'POST', 
+        headers: {
+            'Content-Type': 'application/json',
+            'X-App-Password': appPassword
+        },
+        body: JSON.stringify({ 
+            name: name, 
+            kids_score: parseInt(inputScore), 
+            memo: inputMemo 
+        })
+    }).then(res => {
+        if (res.ok) loadData();
+    });
 }
 // ==========================================================================
-// 4. 地図・UI描画ロジック (Rendering)
+// 4. 地図・UI描画ロジック (Rendering) 
 // ==========================================================================
 
 async function loadData() {
     /**
      * バックエンドから全データを取得し、地図上のピンを生成。
-     * ここでもパスワード（appPassword）をヘッダーに乗せてリクエスト。
+     * マウスオーバー時のツールチップ表示機能を含めて完全に復元。
      */
     const res = await fetch(`${API_BASE_URL}/get-locations`, {
         headers: { 'X-App-Password': appPassword }
@@ -217,6 +241,8 @@ async function loadData() {
     
     allLocations = await res.json();
     
+    // 既存のマーカーがあればクリアする処理が必要な場合はここに追加
+
     allLocations.forEach(loc => {
         const marker = new google.maps.Marker({ 
             position: { lat: loc.lat, lng: loc.lng }, 
@@ -224,35 +250,39 @@ async function loadData() {
             title: loc.name 
         });
 
-        // マウスオーバー：簡易情報を表示
+        // マウスオーバー：ピンに合わせると星とメモを表示
         marker.addListener("mouseover", () => {
             showTooltipWithMarker(marker, loc.name, loc.memo || '', loc.kids_score);
         });
 
-        // マウスアウト：情報を閉じる
+        // マウスアウト：離れるとツールチップを閉じる
         marker.addListener("mouseout", () => {
             infowindow.close();
         });
 
-        // クリック：該当するリストカードへスクロール
+        // クリック：該当するリストカードへスムーズスクロール
         marker.addListener("click", () => {
             const card = document.getElementById(`card-${loc.name}`);
-            if (card) card.scrollIntoView({ behavior: 'smooth' });
-            
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // カードを強調するエフェクトなどを入れる場合はここ
+            }
             map.panTo(marker.getPosition());
             map.setZoom(17);
         });
     });
 
+    // 地図のピンが打てたら、下のリストも描画する
     renderList();
 }
 
 function renderList() {
     /**
      * 画面下部の「攻略済みスポット一覧」を生成。
+     * 編集ボタンを editInList(prompt形式) に、削除を deleteLocation に紐付け。
      */
     const container = document.getElementById('card-list');
-    if (!container) return; // エラー防止
+    if (!container) return; 
     container.innerHTML = '';
     
     allLocations.forEach(loc => {
@@ -270,7 +300,7 @@ function renderList() {
                 <div class="memo-text" style="font-size:0.85rem; color:#555;">${loc.memo || ''}</div>
             </div>
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button onclick="editLocation('${loc.name}', ${loc.kids_score}, '${loc.memo || ''}')" style="flex:1; background:#28a745; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">編集</button>
+                <button onclick="editInList('${loc.name}', ${loc.kids_score}, '${loc.memo || ''}')" style="flex:1; background:#28a745; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">編集</button>
                 <button onclick="deleteLocation('${loc.name}')" style="flex:1; background:#dc3545; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">削除</button>
             </div>`;
         container.appendChild(card);
@@ -283,8 +313,8 @@ function renderList() {
 
 function showSaveForm(place) {
     /**
-     * 場所検索後に表示される新規保存用フォーム。
-     * score-inputにデフォルト値5をセット。
+     * 新規保存フォーム。
+     * ID重複を避けるため、querySelectorで取得できるようクラスを付与。
      */
     const content = `
         <div class="info-window-form">
@@ -304,7 +334,6 @@ function showSaveForm(place) {
     infowindow.setPosition(place.geometry.location);
     infowindow.open(map);
 }
-
 function previewImage(input) {
     /**
      * InfoWindow内のプレビュー要素を確実に特定して表示。
@@ -363,6 +392,46 @@ function sortTable(key) {
         return currentSort.asc ? (vA > vB ? 1 : -1) : (vA < vB ? 1 : -1);
     });
     renderList();
+}
+
+function showTooltipWithMarker(marker, name, memo, score) {
+    const stars = "⭐".repeat(score);
+    const content = `
+        <div style="padding: 5px; min-width: 150px; line-height: 1.4;">
+            <strong style="font-size: 1rem;">${name}</strong><br>
+            <span style="color: #f39c12;">${stars}</span>
+            <div style="margin-top: 5px; font-size: 0.85rem; color: #555; white-space: pre-wrap;">${memo}</div>
+        </div>`;
+    infowindow.setOptions({
+        pixelOffset: new google.maps.Size(0, 10) 
+    });
+    infowindow.setContent(content);
+    
+   
+    infowindow.open(map, marker);
+}
+
+function focusOnMap(lat, lng, name, memo, score) {
+    const pos = { lat: parseFloat(lat), lng: parseFloat(lng) };
+    map.panTo(pos);
+    map.setZoom(17);
+
+    const stars = "⭐".repeat(score);
+    const content = `
+        <div style="padding: 5px; min-width: 150px;">
+            <strong style="font-size: 1rem;">${name}</strong><br>
+            <span style="color: #f39c12;">${stars}</span>
+            <p style="margin-top: 5px; font-size: 0.85rem;">${memo}</p>
+        </div>`;
+    infowindow.setContent(content);
+
+
+    infowindow.setOptions({
+        pixelOffset: new google.maps.Size(0, -30) 
+    });
+    
+    infowindow.setPosition(pos);
+    infowindow.open(map);
 }
 
 // ページロード完了時に地図を初期化
