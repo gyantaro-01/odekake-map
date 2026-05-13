@@ -87,16 +87,22 @@ body {
 }
 
 #pac-input {
-    width: 100%;
-    padding: 12px 20px;
-    border-radius: 25px;
-    border: none;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-    outline: none;
-    box-sizing: border-box;
-    font-size: 16px; /* iOSの自動ズーム防止 */
+    /* 
+       画面端から少し余裕（10px）を持たせ、
+       右側のログアウトボタン等のスペース（約80px程度）を引いた幅にする 
+    */
+    width: calc(100% - 100px) !important;
+    
+    /* 左側の位置を調整（画面端にピッタリすぎないように） */
+    left: 10px !important;
+    
+    /* スマホでタップしやすい高さを確保 */
+    height: 40px;
+    margin-top: 10px;
+    
+    /* 重なりを防ぐためのZ指数（ボタンより下にするか、必要に応じて調整） */
+    z-index: 5;
 }
-
 /* ==========================================================================
    4. List & Cards (Information Architecture)
    ========================================================================== */
@@ -114,13 +120,10 @@ body {
 }
 
 .logout-btn {
-    background: var(--danger-color);
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    cursor: pointer;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 10; /* ボタンを検索窓より上に配置して確実に押せるようにする */
 }
 
 .log-card {
