@@ -221,7 +221,18 @@ function editInList(name, currentScore, currentMemo) {
             memo: inputMemo 
         })
     }).then(res => {
-        if (res.ok) loadData();
+        if (res.ok) {
+            // ① 成功メッセージを出してから再読み込み
+            alert("✨ 更新しました！");
+            loadData();
+        } else {
+            // ② 失敗した場合のセーフティネット
+            alert(`❌ 更新に失敗しました（ステータス: ${res.status}）`);
+        }
+    }).catch(err => {
+        // ネットワークエラーなどの保険
+        console.error(err);
+        alert("🚨 通信エラーが発生しました。");
     });
 }
 // ==========================================================================
