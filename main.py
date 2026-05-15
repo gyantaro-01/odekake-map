@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import APIKeyHeader
+from pydantic import BaseModel  
 from PIL import Image
 from supabase import create_client, Client
 
@@ -80,7 +81,17 @@ def resize_image(file_content: bytes, max_width: int = 1280) -> bytes:
     return output.getvalue()
 
 # ==========================================================================
-# 4. APIエンドポイント
+# 4. リクエストデータの型定義 (Pydanticモデル)
+# ==========================================================================
+
+class LocationUpdate(BaseModel):
+    """JS側からJSON形式で送られてくる編集データを受け取る型"""
+    name: str
+    kids_score: int
+    memo: str
+
+# ==========================================================================
+# 5. APIエンドポイント
 # ==========================================================================
 
 @app.get("/", response_class=HTMLResponse)
@@ -140,6 +151,21 @@ async def save_location(
     response = supabase.table("locations").insert(data).execute()
     return {"status": "success", "data": response.data}
 
+@app.post("/update-location")
+async def update_location(data: LocationUpdate, auth: str = Depends(verify_app_access)):
+    """
+    認証通過後、既存スポットの情報を更新する。
+    場所名（name）をキーにして、星（kids_score）とメモ（memo）を書き換えます。
+    """
+    try:
+        response = supabase.table("locations")\
+            .update({"kids_score": data.kids_score, "memo": data.memo})\
+            .eq("name", data.name)\
+            .execute()
+        return {"status": "success", "data": response.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.delete("/delete-location")
 async def delete_location(name: str, auth: str = Depends(verify_app_access)):
     """認証通過後、削除を実行"""
@@ -147,7 +173,7 @@ async def delete_location(name: str, auth: str = Depends(verify_app_access)):
     return {"status": "success"}
 
 # ==========================================================================
-# 5. サーバー起動
+# 6. サーバー起動
 # ==========================================================================
 
 if __name__ == "__main__":
