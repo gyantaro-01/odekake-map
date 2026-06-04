@@ -14,6 +14,7 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel  
 from PIL import Image
 from supabase import create_client, Client
+from fastapi.responses import FileResponse
 
 # 環境変数の読み込み
 load_dotenv()
@@ -105,6 +106,14 @@ async def read_root(request: Request):
         name="index.html",
         context={"api_key": API_KEY}
     )
+
+@app.get("/sw.js")
+async def get_sw():
+    return FileResponse("static/sw.js", media_type="application/javascript")
+
+@app.get("/manifest.json")
+async def get_manifest():
+    return FileResponse("static/manifest.json", media_type="application/json")
 
 @app.get("/api/config")
 async def get_config(auth: str = Depends(verify_app_access)):

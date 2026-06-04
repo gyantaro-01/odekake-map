@@ -447,3 +447,10 @@ function focusOnMap(lat, lng, name, memo, score) {
 
 // ページロード完了時に地図を初期化
 google.maps.event.addDomListener(window, "load", initMap);
+
+// ページロード時にPWAサービスワーカーを登録（jsフォルダ内にあるためscopeを指定）
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })  // 
+    .then(() => console.log('PWA登録成功！'))
+    .catch((err) => console.error('PWA登録失敗:', err));
+}
